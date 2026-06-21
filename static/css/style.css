@@ -401,6 +401,7 @@ body {
     margin-top: 0.5rem;
     border-top: 1px solid rgba(255, 255, 255, 0.04);
     padding-top: 0.75rem;
+    gap: 1.25rem;
 }
 
 .btn-card-action {
@@ -424,6 +425,10 @@ body {
 
 .btn-card-action:hover {
     color: #93c5fd !important;
+}
+
+.btn-card-action.copied {
+    color: var(--cat-feature) !important;
 }
 
 .btn-card-action svg {

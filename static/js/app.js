@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const categoryFilters = document.getElementById('category-filters');
     const refreshBtn = document.getElementById('refresh-btn');
     const syncIcon = document.getElementById('sync-icon');
+    const exportBtn = document.getElementById('export-btn');
     
     // Toast elements
     const toast = document.getElementById('status-toast');
@@ -32,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let activeCategory = 'ALL';
     let searchQuery = '';
     let selectedUpdateId = null;
+    let currentFilteredUpdates = [];
 
     // ---------------------------------------------------------
     // API ACTIONS
@@ -109,6 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return matchesCategory && matchesSearch;
         });
 
+        currentFilteredUpdates = filtered;
         renderUpdates(filtered);
     }
 
@@ -143,6 +146,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     ${update.content_html}
                 </div>
                 <div class="card-footer">
+                    <button class="btn-card-action btn-copy-card" aria-label="Copy update details to clipboard">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                        <span>Copy</span>
+                    </button>
                     <button class="btn-card-action" aria-label="Compose tweet for this update">
                         <svg viewBox="0 0 24 24" fill="currentColor">
                             <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
@@ -151,6 +161,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     </button>
                 </div>
             `;
+
+            // Clipboard Copy handler
+            const copyBtn = card.querySelector('.btn-copy-card');
+            copyBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevents selecting the card when copying
+                const textToCopy = `BigQuery Release (${update.date}) - ${update.category}:\n\n${update.content_text}\n\nRead more: ${update.ref_link}`;
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    const textSpan = copyBtn.querySelector('span');
+                    const originalText = textSpan.textContent;
+                    textSpan.textContent = 'Copied!';
+                    copyBtn.classList.add('copied');
+                    setTimeout(() => {
+                        textSpan.textContent = originalText;
+                        copyBtn.classList.remove('copied');
+                    }, 1500);
+                }).catch(err => {
+                    console.error('Failed to copy: ', err);
+                    showToast('Failed to copy to clipboard', true);
+                });
+            });
 
             // Click listener for selecting card
             card.addEventListener('click', () => {
@@ -297,6 +327,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // ---------------------------------------------------------
     // EVENT LISTENERS
     // ---------------------------------------------------------
+    // Export CSV Button
+    exportBtn.addEventListener('click', () => {
+        exportToCSV(currentFilteredUpdates);
+    });
+
     // Sync Button
     refreshBtn.addEventListener('click', () => {
         fetchUpdates(true);
@@ -335,6 +370,52 @@ document.addEventListener('DOMContentLoaded', () => {
     toastCloseBtn.addEventListener('click', () => {
         toast.classList.remove('show');
     });
+
+    // CSV Exporter Helper
+    function exportToCSV(updatesToExport) {
+        if (updatesToExport.length === 0) {
+            showToast('No updates to export', true);
+            return;
+        }
+
+        const headers = ['Date', 'Category', 'Summary', 'Reference Link'];
+        
+        const escapeCSV = (val) => {
+            if (val === null || val === undefined) return '';
+            let formatted = val.toString().trim();
+            formatted = formatted.replace(/"/g, '""');
+            if (formatted.includes('"') || formatted.includes(',') || formatted.includes('\n') || formatted.includes('\r')) {
+                formatted = `"${formatted}"`;
+            }
+            return formatted;
+        };
+
+        const csvRows = [
+            headers.join(','),
+            ...updatesToExport.map(update => [
+                escapeCSV(update.date),
+                escapeCSV(update.category),
+                escapeCSV(update.content_text),
+                escapeCSV(update.ref_link)
+            ].join(','))
+        ];
+
+        const csvContent = '\uFEFF' + csvRows.join('\r\n'); // Add UTF-8 BOM
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const dateStr = new Date().toISOString().slice(0, 10);
+        
+        link.href = url;
+        link.setAttribute('download', `bigquery_release_notes_${dateStr}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        showToast(`Successfully exported ${updatesToExport.length} updates to CSV!`);
+    }
 
     // ---------------------------------------------------------
     // INITIALIZATION
