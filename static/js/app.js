@@ -153,7 +153,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         </svg>
                         <span>Copy</span>
                     </button>
-                    <button class="btn-card-action" aria-label="Compose tweet for this update">
+                    <button class="btn-card-action btn-export-card" aria-label="Export this card to CSV">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        <span>CSV</span>
+                    </button>
+                    <button class="btn-card-action btn-draft-card" aria-label="Compose tweet for this update">
                         <svg viewBox="0 0 24 24" fill="currentColor">
                             <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
                         </svg>
@@ -162,24 +170,57 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
 
-            // Clipboard Copy handler
+            // Clipboard Copy handler (Copies ONLY raw description text)
             const copyBtn = card.querySelector('.btn-copy-card');
             copyBtn.addEventListener('click', (e) => {
                 e.stopPropagation(); // Prevents selecting the card when copying
-                const textToCopy = `BigQuery Release (${update.date}) - ${update.category}:\n\n${update.content_text}\n\nRead more: ${update.ref_link}`;
-                navigator.clipboard.writeText(textToCopy).then(() => {
-                    const textSpan = copyBtn.querySelector('span');
-                    const originalText = textSpan.textContent;
-                    textSpan.textContent = 'Copied!';
-                    copyBtn.classList.add('copied');
-                    setTimeout(() => {
-                        textSpan.textContent = originalText;
-                        copyBtn.classList.remove('copied');
-                    }, 1500);
-                }).catch(err => {
-                    console.error('Failed to copy: ', err);
-                    showToast('Failed to copy to clipboard', true);
-                });
+                const textToCopy = update.content_text; // Copy ONLY card description
+
+                // Secure Context Check
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(textToCopy).then(() => {
+                        const textSpan = copyBtn.querySelector('span');
+                        const originalText = textSpan.textContent;
+                        textSpan.textContent = 'Copied!';
+                        copyBtn.classList.add('copied');
+                        setTimeout(() => {
+                            textSpan.textContent = originalText;
+                            copyBtn.classList.remove('copied');
+                        }, 1500);
+                    }).catch(err => {
+                        console.error('Failed to copy: ', err);
+                        showToast('Failed to copy to clipboard', true);
+                    });
+                } else {
+                    // Fallback clipboard method using temporary textarea
+                    const tempInput = document.createElement('textarea');
+                    tempInput.value = textToCopy;
+                    tempInput.style.position = 'fixed';
+                    tempInput.style.opacity = '0';
+                    document.body.appendChild(tempInput);
+                    tempInput.select();
+                    try {
+                        document.execCommand('copy');
+                        const textSpan = copyBtn.querySelector('span');
+                        const originalText = textSpan.textContent;
+                        textSpan.textContent = 'Copied!';
+                        copyBtn.classList.add('copied');
+                        setTimeout(() => {
+                            textSpan.textContent = originalText;
+                            copyBtn.classList.remove('copied');
+                        }, 1500);
+                    } catch (err) {
+                        showToast('Failed to copy to clipboard', true);
+                    }
+                    document.body.removeChild(tempInput);
+                }
+            });
+
+            // Single Card CSV Export handler (Exports ONLY this card's details)
+            const cardExportBtn = card.querySelector('.btn-export-card');
+            cardExportBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevents selecting the card when exporting
+                exportToCSV([update]);
             });
 
             // Click listener for selecting card

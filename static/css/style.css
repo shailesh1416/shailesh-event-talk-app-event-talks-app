@@ -349,7 +349,7 @@ body {
 /* Rendered HTML inside Card */
 .card-body {
     font-size: 0.925rem;
-    color: var(--text-secondary);
+    color: #cbd5e1;
     line-height: 1.6;
 }
 
@@ -357,7 +357,8 @@ body {
     display: none; /* Hide internal header since badge is visible */
 }
 
-.card-body p {
+.card-body p, .card-body li, .card-body ul, .card-body ol {
+    color: #cbd5e1;
     margin-bottom: 0.75rem;
 }
 
